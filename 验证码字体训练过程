@@ -1,0 +1,92 @@
+
+
+###!!!注:
+需在用户变量中设置TRSSDATA_PREFIX变量名,
+值为Tesseract-OCR中tessdata所在的路径"C:\Program Files (x86)\Tesseract-OCR\tessdata"
+在系统变量中添加Tesseract-OCR中tessdata所在的路径"C:\Program Files (x86)\Tesseract-OCR\tessdata"
+
+1.cmd命令打开jTessBoxEditor.jar文件:
+D:\迅雷下载\jdk-12.0.1_windows-x64_bin\jdk-12.0.1\bin>java -jar jTessBoxEditor.jar
+
+2.打开后Trainer的Tool工具Merge Tiff按钮后选择验证码"灰度->二值化->除燥"之后存储的文件夹
+后保存在随意设置的文件夹(推荐新建一个空文件夹)中,文件名为num.font.exp0.tif(该文件名不可瞎起,有严格格式要求),文件类型选择TIFF后保存
+
+3.打开cmd命令行并切换至num.font.exp0.tif所在目录，
+输入"tesseract num.font.exp0.tif num.font.exp0 batch.nochop makebox"
+也可输入"tesseract num.font.exp0.tif num.font.exp0 -psm 7 batch.nochop makebox" 加上参数"-psm 7"后生成box文件的时候tesseract就会把图片当作单行文本进行处理 
+生成文件名为num.font.exp0.box的文件
+"""
+tesseract [lang].[fontname].exp[num].tif [lang].[fontname].exp[num] batch.nochop makebox  
+lang:语言名称 -->num
+fingname:字体名称 -->font
+num:序号 -->0
+#在tesseract中，要注意格式
+"""
+
+4.在num.font.exp0.tif所在目录使用notepad创建名为"font_properties"的文件#注意是文件格式!! 不是文本文件格式
+在该文件中写入数据
+"font 0 0 0 0 0  "
+<fontname> <italic> <bold> <fixed> <serif> <fraktur>  
+fontname为字体名称
+italic为斜体
+bold为黑体字
+fixed为默认字体
+serif为衬线字体
+fraktur德文黑字体
+1和0代表有和无，精细区分时可使用。
+
+5.打开jTessBoxEditor.jar --> BOX Editor --> Open，打开num.font.exp0.tif后进行字体矫正,注意"保存"及"翻页"
+
+6.字体矫正结束后在num.font.exp0.tif所在目录创建批处理文件num.bat
+创建过程:先创建num.bat的txt文件 写入数据
+"""
+rem 执行改批处理前先要目录下创建font_properties文件 
+
+echo Run Tesseract for Training.. 
+tesseract.exe num.font.exp0.tif num.font.exp0 nobatch box.train 
+ 
+echo Compute the Character Set.. 
+unicharset_extractor.exe num.font.exp0.box 
+mftraining -F font_properties -U unicharset -O num.unicharset num.font.exp0.tr 
+
+
+echo Clustering.. 
+cntraining.exe num.font.exp0.tr 
+
+echo Rename Files.. 
+rename normproto num.normproto 
+rename inttemp num.inttemp 
+rename pffmtable num.pffmtable 
+rename shapetable num.shapetable  
+
+echo Create Tessdata.. 
+combine_tessdata.exe num. 
+
+echo. & pause
+"""
+另存为后选中num.bat文件后在文件名加后缀.bat,用于将文件改为window批处理文件
+
+7.执行num.bat文件后 将生成的num.traineddata文件移至"C:\Anacoda\tessdata"及"C:\Program Files (x86)\Tesseract-OCR\tessdata"文件中
+
+8.模拟登录时验证码图片正常"灰化-->二值化-->除燥"后输入值即可
+
+9.在输入验证码时,tesserocr.image_to_text(image,lang='num')#需要指定生成的traineddate语言防止使用默认语言
+from PIL import Image
+import tesserocr
+
+image = Image.open(".\\origin_images\\112.png")
+image = image.convert("L")
+threshold = 140
+table = []
+for i in range(256):
+    if i < threshold:
+        table.append(0)
+    else:
+        table.append(1)
+image = image.point(table,"1")
+result = tesserocr.image_to_text(image,lang='num')
+print(result)
+
+
+cmd命令:
+C:\Program Files (x86)\Tesseract-OCR>tesseract num.font.exp0.tif num.font.exp0 -psm 7 batch.nochop makebox
